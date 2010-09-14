@@ -1,38 +1,45 @@
 <?php
 
 /*
+
 Plugin Name: Page Excerpt
 Plugin URI: http://dennishoppe.de/wordpress-plugins/page-excerpt
-Description: Adds an Excerpt box to the page edit backend. 
-Version: 1.0
+Description: The Page Excerpt Plugin enables you to add an optional hand-crafted summary of your pages content to each page that can be used in your theme or by plugins. 
+Version: 1.0.1
 Author: Dennis Hoppe
 Author URI: http://DennisHoppe.de
+
 */
+
+
+// Please think about a donation
+If (Is_File(DirName(__FILE__).'/donate.php')) Include DirName(__FILE__).'/donate.php';
 
 
 If (!Class_Exists('wp_plugin_page_excerpt')){
 Class wp_plugin_page_excerpt {
 
-  Function wp_plugin_page_excerpt(){
+  Function __construct(){
     // Set Hook
-    Add_Action('admin_menu', Array($this, 'add_page_excerpt_box'));
+    Add_Action('admin_menu', Array($this, 'Add_Page_Excerpt_Box'));
   }
   
-  Function add_page_excerpt_box(){
+  Function Add_Page_Excerpt_Box(){
     // We just copy the function for the post.
-    add_meta_box('pageexcerpt', __('Excerpt'), Array($this, 'excerpt_box'), 'page', 'normal', 'core');
+    Add_Meta_Box(
+      'pageexcerpt',
+      __('Excerpt'),
+      Array($this, 'Print_Excerpt_Box'),
+      'page',
+      'normal',
+      'core'
+    );
   }
   
-  Function excerpt_box (){
-    Global $post;
-    
+  Function Print_Excerpt_Box (){
     /* Start of the box content - this is a copy from edit-form-advanced.php so the translation exists already in the core! */
-    ?><label class="screen-reader-text" for="excerpt"><?php _e('Excerpt') ?></label>
-    <textarea rows="1" cols="40" name="excerpt" tabindex="6" id="excerpt"><?php echo $post->post_excerpt ?></textarea>
-    <p><?php _e('Excerpts are optional hand-crafted summaries of your content that can be used in your theme. <a href="http://codex.wordpress.org/Excerpt" target="_blank">Learn more about manual excerpts.</a>'); ?></p>
-    <?php
-    /* End of the box content */
-    
+    Include DirName(__FILE__) . '/meta-box.php';
+    /* End of the box content */    
   }
 
 } /* End of the Class */

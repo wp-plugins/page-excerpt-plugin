@@ -3,23 +3,29 @@ Contributors: dhoppe
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=1220480
 Tags: page, pages, excerpt, teaser, admin, content, cms
 Requires at least: 2.8.1
-Tested up to: 3.0
+Tested up to: 3.1
 Stable tag: trunk
 
-The Page Excerpt Plugin enables you to add an optional hand-crafted summary of your page content that can be used in your theme.
+The Page Excerpt Plugin enables you to add an optional hand-crafted summary of your pages content to each page.
 
 == Description ==
+The Page Excerpt Plugin enables you to add an optional hand-crafted summary of your pages content to each page that can be used in your theme or by plugins.
 
-The Page Excerpt Plugin enables you to add an optional hand-crafted summary of your page content that can be used in your theme.
+= Requirements =
+* **Page Excerpt Plugin requires PHP5!**
+* WordPress 2.8.1 or higher
 
 = Questions =
-If you have any questions you can leave a comment in my blog.
+If you have any questions feel free to leave a comment in my blog. But please think about this: I will not add features, write customizations or write tutorials for free. Please think about a donation. I'm a human and to write code is hard work.
 
-= Languages =
-* This Plugin is available in all languages in which WordPress is available. All translations are already in the core language file.
+= Language =
+This Plugin uses core translation strings only. So if you use WordPress in your language this plugin will use the same translations. You do not need any language file.
+
+== Screenshots ==
+
+1. The excerpt box "in action".
 
 == Installation ==
-
 Installation as usual.
 
 1. Unzip and Upload all files to a sub directory in "/wp-content/plugins/".
@@ -28,6 +34,9 @@ Installation as usual.
 1. There is a new box with title "Excerpt"
 
 == Changelog ==
+
+= 1.0.1 =
+* Cleaned Code and changes encoding of the source files.
 
 = 1.0 =
 * Everything works fine.
