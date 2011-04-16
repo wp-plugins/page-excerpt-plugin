@@ -1,9 +1,8 @@
 <?php
 
-If (!Class_Exists('wp_plugin_donation_to_dennis_hoppe')){
-Class wp_plugin_donation_to_dennis_hoppe {
-  var $text_domain;
-  
+If (!Class_Exists('wp_plugin_contribution_to_dennis_hoppe')){
+Class wp_plugin_contribution_to_dennis_hoppe {
+
   Function __construct(){
     // If we are not in admin panel. We bail out.
     If (!Is_Admin()) return False;
@@ -11,51 +10,49 @@ Class wp_plugin_donation_to_dennis_hoppe {
     // Load Text Domain
     $this->Load_TextDomain();
     
-    // Register the setting if a user donated
-    Add_Action('admin_menu', Array($this, 'add_settings_field'));
+    // Register the settings
+    Add_Action('admin_init', Array($this, 'add_settings_field'));
     
-    // Check if the user has already donated
-    If (get_option('donated_to_dennis_hoppe')) return False;
+    // Check if the user has already send a contribution
+    If (get_option('donated_to_dennis_hoppe')) return False; // Deprecated
+    If (get_option('contributed_to_dennis_hoppe')) return False;
     
-    // Add some Js for the donation buttons to the admin header
-    Add_Action('admin_head', Array($this, 'print_donation_js'));
+    // Add some Js for the contribution buttons to the admin header
+    Add_Action('admin_head', Array($this, 'print_contribution_js'));
     
-    // Add the donation form (hidden)
-    Add_Action('admin_notices', Array($this, 'print_donation_form'), 1);
+    // Add the contribution form (hidden)
+    Add_Action('admin_notices', Array($this, 'print_contribution_form'), 1);
     
     // Register the Dashboard Widget
     Add_Action('wp_dashboard_setup', Array($this, 'register_widget'));
 
-    // Register donation message
+    // Register contribution message
     Add_Action('donation_message', Array($this, 'print_message'));
+    Add_Action('dh_contribution_message', Array($this, 'print_message'));
   }
 
   Function Load_TextDomain(){
-    $this->text_domain = get_class($this);
-    $lang_file = DirName(__FILE__) . '/donate_' . get_locale() . '.mo';
-    If (Is_File ($lang_file)) load_textdomain ($this->text_domain, $lang_file);
+    $locale = Apply_Filters( 'plugin_locale', get_locale(), __CLASS__ );
+    load_textdomain (__CLASS__, DirName(__FILE__).'/contribution_' . $locale . '.mo');
   }
   
   Function t ($text, $context = ''){
     // Translates the string $text with context $context
-    If ($context == '')
-      return __($text, $this->text_domain);
-    Else
-      return _x($text, $context, $this->text_domain);
-  }  
+    If ($context == '') return __ ($text, __CLASS__);
+    Else return _x ($text, $context, __CLASS__);
+  }
   
   Function register_widget(){    
     // Setup the Dashboard Widget
-    wp_add_dashboard_widget(
-      'donation-to-dennis-hoppe-' . Time(),
-      $this->t('Please think about a donation!'),
-      Array($this, 'print_message')
-    );
+    wp_add_dashboard_widget( Date('yz'), $this->t('Do you appreciate my job?'), Array($this, 'print_message') );
   }
   
-  Function print_donation_js(){
+  Function print_contribution_js(){
     ?><script type="text/javascript">/* <![CDATA[ */jQuery(function($){
     // Start of the DOM ready sequence
+    
+    // We do not need the dashboard hide box
+    jQuery('label[for=<?php Echo Date('yz') ?>-hide]').remove();
     
     // Hide all fields we do not want show to the cool js users.
     jQuery('.hide_if_js').hide();
@@ -64,23 +61,23 @@ Class wp_plugin_donation_to_dennis_hoppe {
     jQuery('.show_if_js').show();
     
     // Catch the currency click
-    jQuery('.dennis_hoppe_donation_show_ui').click(function(){
-      jQuery('.dennis_hoppe_donation_ui').slideUp();
-      jQuery(this).parent().find('.dennis_hoppe_donation_ui').slideDown();
+    jQuery('.dennis_hoppe_contribution_show_ui').click(function(){
+      jQuery('.dennis_hoppe_contribution_ui').slideUp();
+      jQuery(this).parent().find('.dennis_hoppe_contribution_ui').slideDown();
       return false;
     });
     
-    // Catch the donation button click
-    jQuery('input.dennis_hoppe_donation_button').click(function(){
+    // Catch the contribution button click
+    jQuery('input.dennis_hoppe_contribution_button').click(function(){
       // Find the form
-      var $form = jQuery('form#dennis_hoppe_paypal_donation_form');
+      var $form = jQuery('form#dennis_hoppe_paypal_contribution_form');
       
       // Find the button
       var $this = jQuery(this).parent();
       
       // Read currency and amount
-      var currency = $this.find('.dennis_hoppe_donation_currency').val();
-      var amount = $this.find('.dennis_hoppe_donation_amount').val();
+      var currency = $this.find('.dennis_hoppe_contribution_currency').val();
+      var amount = $this.find('.dennis_hoppe_contribution_amount').val();
       
       // Put the values in the form
       $form
@@ -88,11 +85,11 @@ Class wp_plugin_donation_to_dennis_hoppe {
         .find('input[name=amount]').val(amount).end()
         .submit();
     });
-    // End of the catch routine of the donation button
+    // End of the catch routine of the contribution button
     
-    // Catch the donation select amount change
-    jQuery('.dennis_hoppe_donation_currency, .dennis_hoppe_donation_amount').change(function(){
-      jQuery(this).parent().find('input.dennis_hoppe_donation_button').removeAttr('disabled');
+    // Catch the contribution select amount change
+    jQuery('.dennis_hoppe_contribution_currency, .dennis_hoppe_contribution_amount').change(function(){
+      jQuery(this).parent().find('input.dennis_hoppe_contribution_button').removeAttr('disabled');
     });
     // End of the catch of the select amount change
     
@@ -100,17 +97,17 @@ Class wp_plugin_donation_to_dennis_hoppe {
     });/* ]]> */</script><?php
   }
   
-  Function print_donation_form(){
+  Function print_contribution_form(){
     ?><div style="display:none">
 
-    <!-- PayPal Donation Form for Dennis Hoppe -->
-    <form action="https://www.paypal.com/cgi-bin/webscr" id="dennis_hoppe_paypal_donation_form" method="post" target="_blank">
+    <!-- PayPal Contribution Form for Dennis Hoppe -->
+    <form action="https://www.paypal.com/cgi-bin/webscr" id="dennis_hoppe_paypal_contribution_form" method="post" target="_blank">
       <input type="hidden" name="cmd" value="_xclick" />
       <input type="hidden" name="business" value="mail@dennishoppe.de" />
       <input type="hidden" name="no_shipping" value="1" />
       <input type="hidden" name="tax" value="0" />
       <input type="hidden" name="no_note" value="0" />
-      <input type="hidden" name="item_name" value="<?php Echo $this->t('Donation to the Open Source Community') ?>" />
+      <input type="hidden" name="item_name" value="<?php Echo $this->t('Contribution to the Open Source Community') ?>" />
       <input type="hidden" name="on0" value="<?php Echo $this->t('Reference') ?>" />
       <input type="hidden" name="os0" value="<?php Echo $this->t('WordPress') ?>" />
       <?php ForEach ($this->get_current_extensions() AS $index => $extension) : ?>
@@ -120,7 +117,7 @@ Class wp_plugin_donation_to_dennis_hoppe {
       <input type="hidden" name="currency_code" value="" />
       <input type="hidden" name="amount" value="" />
     </form>
-    <!-- End of PayPal Donation Form for Dennis Hoppe -->
+    <!-- End of PayPal Contribution Form for Dennis Hoppe -->
 
     </div><?php
   }
@@ -129,7 +126,7 @@ Class wp_plugin_donation_to_dennis_hoppe {
     // Array which contains all my extensions
     Static $arr_extension;
     
-    If (IsSet($arr_extension))
+    If ( IsSet($arr_extension) && !Empty($arr_extension) )
       return $arr_extension;
     Else
       $arr_extension = Array();
@@ -158,22 +155,17 @@ Class wp_plugin_donation_to_dennis_hoppe {
     $arr_extension = $this->get_current_extensions();
 
     // Write the Dashboard message
-    ?><img src="http://www.gravatar.com/avatar/d50a70b7a2e91bb31e8f00c13149f059?s=100" class="alignright" alt="Dennis Hoppe" height="100" width="100" style="margin:0 0 3px 10px;" />
+    ?><img src="http://www.gravatar.com/avatar/d50a70b7a2e91bb31e8f00c13149f059?s=96" class="alignright" alt="Dennis Hoppe" height="96" width="96" style="margin:0 0 3px 10px;border:1px solid #ddd;" />
     
     <div style="text-align:justify">    
       <h4><?php PrintF ( $this->t('Hello %1$s!'), $current_user->display_name ) ?></h4>
       
       <p>
-        <?php Echo $this->t('My name is Dennis Hoppe and I am a computer science student working and living in Berlin, Germany.') ?>
-        <?php PrintF ($this->t('Beside other plugins and themes I developed %1$s.'), $this->Extended_Implode ($arr_extension, ', ', ' ' . $this->t('and') . ' ')) ?>
-        <?php Echo $this->t('I love the spirit of the open source movement, to write and share code and knowledge, but I think the system can work only if everyone contributes one\'s part properly.') ?>      
+        <?php Echo $this->t('My name is Dennis Hoppe and I am a freelance WordPress developer.') ?>
+        <span style="font-weight:bold;color:red"><?php If (!Empty($arr_extension)) PrintF ($this->t('Beside other plugins and themes I developed %1$s.'), $this->Extended_Implode ($arr_extension, ', ', ' ' . $this->t('and') . ' ')) ?></span>
+        <?php Echo $this->t('If you find my plugins useful please consider making a contribution. This would support the plugins continued development ... <em>and it would remove this Notification!</em>') ?> ;)
       </p>
-      
-      <p>
-        <?php PrintF ($this->t('Because you are using %1$s of my WordPress extensions I hope you will appreciate my job.'), $this->Number_to_Word(Count($arr_extension))) ?>
-        <?php Echo $this->t('So please think about a donation. You would also help to keep alive and growing the community.') ?>
-      </p>
-
+    
     </div>
     
     <ul>
@@ -184,7 +176,7 @@ Class wp_plugin_donation_to_dennis_hoppe {
         </ul>
       </li>
       
-      <li class="hide_if_js"><?php Echo $this->t('Make a donation via PayPal') ?>:
+      <li class="hide_if_js"><?php Echo $this->t('Make a contribution via PayPal') ?>:
         <ul>
           <li>&raquo; <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=1220480" target="_blank">United States dollar ($)</a></li>
           <li>&raquo; <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=U49F54BMWKNHU" target="_blank">Pound sterling (&pound;)</a></li>
@@ -192,13 +184,13 @@ Class wp_plugin_donation_to_dennis_hoppe {
         </ul>
       </li>
 
-      <li class="show_if_js" style="display:none"><?php Echo $this->t('Make a donation via PayPal') ?>:
+      <li class="show_if_js" style="display:none"><?php Echo $this->t('Make a contribution via PayPal') ?>:
         <ul>
-          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a donation in US Dollars') ?>" class="dennis_hoppe_donation_show_ui">United States dollar ($)</a>
-            <div class="dennis_hoppe_donation_ui">
+          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a contribution in US Dollars') ?>" class="dennis_hoppe_contribution_show_ui">United States dollar ($)</a>
+            <div class="dennis_hoppe_contribution_ui">
               <?php Echo $this->t('Amount') ?>:
-              <input type="hidden" class="dennis_hoppe_donation_currency" value="USD" />
-              <select class="dennis_hoppe_donation_amount">
+              <input type="hidden" class="dennis_hoppe_contribution_currency" value="USD" />
+              <select class="dennis_hoppe_contribution_amount">
                 <option value="" disabled="disabled" selected="selected"><?php Echo $this->t('Amount in USD') ?></option>
                 <option value="82.95">$82.95</option>
                 <option value="68.95">$68.95</option>
@@ -211,15 +203,15 @@ Class wp_plugin_donation_to_dennis_hoppe {
                 <option value="6.95">$6.95</option>
                 <option value="">&raquo; <?php Echo $this->t('other amount') ?></option>
               </select>
-              <input type="button" class="dennis_hoppe_donation_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />
+              <input type="button" class="dennis_hoppe_contribution_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />
             </div>
           </li>
 
-          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a donation in Pound sterling') ?>" class="dennis_hoppe_donation_show_ui">Pound sterling (&pound;)</a>
-            <div class="dennis_hoppe_donation_ui hide_if_js">
+          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a contribution in Pound sterling') ?>" class="dennis_hoppe_contribution_show_ui">Pound sterling (&pound;)</a>
+            <div class="dennis_hoppe_contribution_ui hide_if_js">
               <?php Echo $this->t('Amount') ?>:
-              <input type="hidden" class="dennis_hoppe_donation_currency" value="GBP" />
-              <select class="dennis_hoppe_donation_amount">
+              <input type="hidden" class="dennis_hoppe_contribution_currency" value="GBP" />
+              <select class="dennis_hoppe_contribution_amount">
                 <option value="" disabled="disabled" selected="selected"><?php Echo $this->t('Amount in GBP') ?></option>
                 <option value="62.64">&pound;62.64</option>
                 <option value="52.24">&pound;52.24</option>
@@ -231,15 +223,15 @@ Class wp_plugin_donation_to_dennis_hoppe {
                 <option value="5.41">&pound;5.41</option>
                 <option value="">&raquo; <?php Echo $this->t('other amount') ?></option>
               </select>
-              <input type="button" class="dennis_hoppe_donation_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />            
+              <input type="button" class="dennis_hoppe_contribution_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />            
             </div>
           </li>
           
-          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a donation in Euro') ?>" class="dennis_hoppe_donation_show_ui">Euro (&euro;)</a>
-            <div class="dennis_hoppe_donation_ui hide_if_js">
+          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a contribution in Euro') ?>" class="dennis_hoppe_contribution_show_ui">Euro (&euro;)</a>
+            <div class="dennis_hoppe_contribution_ui hide_if_js">
               <?php Echo $this->t('Amount') ?>:
-              <input type="hidden" class="dennis_hoppe_donation_currency" value="EUR" />
-              <select class="dennis_hoppe_donation_amount">
+              <input type="hidden" class="dennis_hoppe_contribution_currency" value="EUR" />
+              <select class="dennis_hoppe_contribution_amount">
                 <option value="" disabled="disabled" selected="selected"><?php Echo $this->t('Amount in EUR') ?></option>
                 <option value="61.52">61,52 &euro;</option>
                 <option value="51.33">51,33 &euro;</option>
@@ -251,14 +243,14 @@ Class wp_plugin_donation_to_dennis_hoppe {
                 <option value="5.45">5,45 &euro;</option>
                 <option value="">&raquo; <?php Echo $this->t('other amount') ?></option>
               </select>
-              <input type="button" class="dennis_hoppe_donation_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />            
+              <input type="button" class="dennis_hoppe_contribution_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />            
             </div>
           </li>
 
-          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a donation in another currency') ?>" class="dennis_hoppe_donation_show_ui"><?php Echo $this->t('Other currency') ?></a>
-            <div class="dennis_hoppe_donation_ui hide_if_js">
-              <input type="hidden" class="dennis_hoppe_donation_amount" value="" />
-              <select class="dennis_hoppe_donation_currency">
+          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a contribution in another currency') ?>" class="dennis_hoppe_contribution_show_ui"><?php Echo $this->t('Other currency') ?></a>
+            <div class="dennis_hoppe_contribution_ui hide_if_js">
+              <input type="hidden" class="dennis_hoppe_contribution_amount" value="" />
+              <select class="dennis_hoppe_contribution_currency">
                 <option value="" disabled="disabled" selected="selected"><?php Echo $this->t('International currency') ?></option>
                 <option value="CAD">Dollar canadien (C$)</option>
                 <option value="JPY">Yen (&yen;)</option>
@@ -278,7 +270,7 @@ Class wp_plugin_donation_to_dennis_hoppe {
                 <option value="PHP">Piso ng Pilipinas (piso)</option>
                 <option value="TWD">New Taiwan dollar (NT$)</option>
               </select>
-              <input type="button" class="dennis_hoppe_donation_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />
+              <input type="button" class="dennis_hoppe_contribution_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />
             </div>
           </li>
           
@@ -286,19 +278,17 @@ Class wp_plugin_donation_to_dennis_hoppe {
       </li>
     </ul>
     
-    <p><?php Echo $this->t('After donation you will possibly get to know how you can hide this notice easily. ;)') ?></p>
-    
     <div class="clear"></div><?php
   }
   
   Function add_settings_field (){
     // Register the option field
-    register_setting( 'general', 'donated_to_dennis_hoppe' );
-    
+    Register_Setting( 'general', 'contributed_to_dennis_hoppe' );    
+
     // Add Settings Field
     add_settings_field(
-      get_class($this),
-      $this->t('Donation to Dennis Hoppe'),
+      __CLASS__,
+      $this->t('Contribution to Dennis Hoppe'),
       Array($this, 'print_settings_field'),
       'general'
     );
@@ -306,9 +296,9 @@ Class wp_plugin_donation_to_dennis_hoppe {
 
   Function print_settings_field(){    
     ?>    
-    <input type="checkbox" name="donated_to_dennis_hoppe" value="yes" <?php checked(get_option('donated_to_dennis_hoppe'), 'yes') ?>/>
-    <label for="donated_to_dennis_hoppe"><?php Echo $this->t('I give the affidavit that I have sent a donation to Dennis Hoppe or paid him a fee for his job.'); ?>
-    <div style="max-width:600px"><?php do_action('donation_message') ?></div>
+    <input type="checkbox" name="contributed_to_dennis_hoppe" value="yes" <?php checked(get_option('contributed_to_dennis_hoppe'), 'yes') ?>/>
+    <label for="contributed_to_dennis_hoppe"><?php Echo $this->t('I give the affidavit that I have sent a contribution to Dennis Hoppe or paid him a fee for his job.'); ?>
+    <div style="max-width:600px"><?php do_action('dh_contribution_message') ?></div>
     <?php
   }
   
@@ -408,6 +398,6 @@ Class wp_plugin_donation_to_dennis_hoppe {
   
 
 } /* End of the Class */
-New wp_plugin_donation_to_dennis_hoppe();
+New wp_plugin_contribution_to_dennis_hoppe();
 } /* End of the If-Class-Exists-Condition */
 /* End of File */
