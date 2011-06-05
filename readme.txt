@@ -35,6 +35,9 @@ Installation as usual.
 
 == Changelog ==
 
+= 1.2.2 =
+* New contribution widget
+
 = 1.2.1 =
 * Complete rewrite for WordPress 3.1
 

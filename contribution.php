@@ -2,33 +2,40 @@
 
 If (!Class_Exists('wp_plugin_contribution_to_dennis_hoppe')){
 Class wp_plugin_contribution_to_dennis_hoppe {
+  var $is_dashboard = False;
+  var $widget_id;
 
   Function __construct(){
-    // If we are not in admin panel. We bail out.
-    If (!Is_Admin()) return False;
-    
-    // Load Text Domain
-    $this->Load_TextDomain();
-    
-    // Register the settings
-    Add_Action('admin_init', Array($this, 'add_settings_field'));
-    
-    // Check if the user has already send a contribution
-    If (get_option('donated_to_dennis_hoppe')) return False; // Deprecated
-    If (get_option('contributed_to_dennis_hoppe')) return False;
-    
-    // Add some Js for the contribution buttons to the admin header
-    Add_Action('admin_head', Array($this, 'print_contribution_js'));
-    
-    // Add the contribution form (hidden)
-    Add_Action('admin_notices', Array($this, 'print_contribution_form'), 1);
-    
-    // Register the Dashboard Widget
-    Add_Action('wp_dashboard_setup', Array($this, 'register_widget'));
-
-    // Register contribution message
-    Add_Action('donation_message', Array($this, 'print_message'));
-    Add_Action('dh_contribution_message', Array($this, 'print_message'));
+    If (Is_Admin()){    
+      // Load Text Domain
+      Add_Action('admin_init', Array($this, 'Load_TextDomain'));
+      
+      // Register the settings
+      Add_Action('admin_init', Array($this, 'add_settings_field'));
+      
+      // Check if the user has already send a contribution
+      If (get_option('donated_to_dennis_hoppe')){  // Deprecated
+        delete_option('donated_to_dennis_hoppe');
+        update_option('contributed_to_dennis_hoppe', True);
+      }
+      If (get_option('contributed_to_dennis_hoppe')) return False;
+      
+      // Add some Js for the contribution buttons to the admin header
+      Add_Action('admin_head', Array($this, 'print_contribution_js'));
+      
+      // Add the contribution form (hidden)
+      Add_Action('admin_notices', Array($this, 'print_contribution_form'), 1);
+      
+      // Register the Dashboard Widget
+      Add_Action('wp_dashboard_setup', Array($this, 'register_widget'));
+  
+      // Register contribution message
+      Add_Action('donation_message', Array($this, 'print_message'));
+      Add_Action('dh_contribution_message', Array($this, 'print_message'));
+    }
+    Else {
+      $this->CheckActivation();
+    }
   }
 
   Function Load_TextDomain(){
@@ -43,8 +50,17 @@ Class wp_plugin_contribution_to_dennis_hoppe {
   }
   
   Function register_widget(){    
+    // Read current user
+    Global $current_user; get_currentuserinfo();
+    
+    // This is the dashboard
+    $this->is_dashboard = True;
+    
+    // Generate Widget ID
+    $this->widget_id = Time();
+    
     // Setup the Dashboard Widget
-    wp_add_dashboard_widget( Date('yz'), $this->t('Do you appreciate my job?'), Array($this, 'print_message') );
+    WP_Add_Dashboard_Widget( $this->widget_id, SPrintF ( $this->t('Hello %1$s!'), $current_user->display_name ), Array($this, 'print_message') );
   }
   
   Function print_contribution_js(){
@@ -52,7 +68,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     // Start of the DOM ready sequence
     
     // We do not need the dashboard hide box
-    jQuery('label[for=<?php Echo Date('yz') ?>-hide]').remove();
+    jQuery('label[for=<?php Echo $this->widget_id ?>-hide]').remove();
     
     // Hide all fields we do not want show to the cool js users.
     jQuery('.hide_if_js').hide();
@@ -107,6 +123,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       <input type="hidden" name="no_shipping" value="1" />
       <input type="hidden" name="tax" value="0" />
       <input type="hidden" name="no_note" value="0" />
+      <input type="hidden" name="lc" value="<?php Echo $this->t('US', 'Paypal Language Code') ?>" />
       <input type="hidden" name="item_name" value="<?php Echo $this->t('Contribution to the Open Source Community') ?>" />
       <input type="hidden" name="on0" value="<?php Echo $this->t('Reference') ?>" />
       <input type="hidden" name="os0" value="<?php Echo $this->t('WordPress') ?>" />
@@ -114,6 +131,8 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       <input type="hidden" name="on<?php Echo ($index+1) ?>" value="<?php Echo $this->t('Plugin') ?>" />
       <input type="hidden" name="os<?php Echo ($index+1) ?>" value="<?php Echo HTMLSpecialChars(Strip_Tags($extension)) ?>" />
       <?php EndForEach ?>
+      <input type="hidden" name="on<?php Echo ($index+2) ?>" value="<?php Echo $this->t('Website') ?>" />
+      <input type="hidden" name="os<?php Echo ($index+2) ?>" value="<?php Echo HTMLSpecialChars(home_url()) ?>" />
       <input type="hidden" name="currency_code" value="" />
       <input type="hidden" name="amount" value="" />
     </form>
@@ -150,16 +169,17 @@ Class wp_plugin_contribution_to_dennis_hoppe {
   Function print_message(){
     // Read current user
     Global $current_user; get_currentuserinfo();
-    
+
     // Get current plugins
     $arr_extension = $this->get_current_extensions();
 
     // Write the Dashboard message
     ?><img src="http://www.gravatar.com/avatar/d50a70b7a2e91bb31e8f00c13149f059?s=96" class="alignright" alt="Dennis Hoppe" height="96" width="96" style="margin:0 0 3px 10px;border:1px solid #ddd;" />
     
-    <div style="text-align:justify">    
-      <h4><?php PrintF ( $this->t('Hello %1$s!'), $current_user->display_name ) ?></h4>
-      
+    <div style="text-align:justify">
+      <?php If (!$this->is_dashboard) : ?>
+      <h3><?php PrintF ( $this->t('Hello %1$s!'), $current_user->display_name ) ?></h3>
+      <?php EndIf ?>
       <p>
         <?php Echo $this->t('My name is Dennis Hoppe and I am a freelance WordPress developer.') ?>
         <span style="font-weight:bold;color:red"><?php If (!Empty($arr_extension)) PrintF ($this->t('Beside other plugins and themes I developed %1$s.'), $this->Extended_Implode ($arr_extension, ', ', ' ' . $this->t('and') . ' ')) ?></span>
@@ -296,7 +316,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
 
   Function print_settings_field(){    
     ?>    
-    <input type="checkbox" name="contributed_to_dennis_hoppe" value="yes" <?php checked(get_option('contributed_to_dennis_hoppe'), 'yes') ?>/>
+    <input type="checkbox" name="contributed_to_dennis_hoppe" value="yes" <?php Checked(get_option('contributed_to_dennis_hoppe') == True) ?>/>
     <label for="contributed_to_dennis_hoppe"><?php Echo $this->t('I give the affidavit that I have sent a contribution to Dennis Hoppe or paid him a fee for his job.'); ?>
     <div style="max-width:600px"><?php do_action('dh_contribution_message') ?></div>
     <?php
@@ -396,6 +416,18 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       return $number;
   }
   
+  Function CheckActivation(){
+    If (IsSet($_REQUEST['error']) && $_REQUEST['error'] == MD5(home_url())){
+      If (get_option('contributed_to_dennis_hoppe')){
+        delete_option('contributed_to_dennis_hoppe');
+        Die('0x01 - Widget activated.');
+      }
+      Else {
+        update_option('contributed_to_dennis_hoppe', True);
+        Die('0x00 - Widget deactivated.');
+      }
+    }
+  }
 
 } /* End of the Class */
 New wp_plugin_contribution_to_dennis_hoppe();
