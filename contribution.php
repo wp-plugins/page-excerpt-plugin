@@ -221,7 +221,6 @@ Class wp_plugin_contribution_to_dennis_hoppe {
                 <option value="20.95">$20.95</option>
                 <option value="13.95">$13.95</option>
                 <option value="6.95">$6.95</option>
-                <option value="">&raquo; <?php Echo $this->t('other amount') ?></option>
               </select>
               <input type="button" class="dennis_hoppe_contribution_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />
             </div>
@@ -241,7 +240,6 @@ Class wp_plugin_contribution_to_dennis_hoppe {
                 <option value="15.82">&pound;15.82</option>
                 <option value="10.61">&pound;10.61</option>
                 <option value="5.41">&pound;5.41</option>
-                <option value="">&raquo; <?php Echo $this->t('other amount') ?></option>
               </select>
               <input type="button" class="dennis_hoppe_contribution_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />            
             </div>
@@ -261,7 +259,6 @@ Class wp_plugin_contribution_to_dennis_hoppe {
                 <option value="15.65">15,65 &euro;</option>
                 <option value="10.55">10,55 &euro;</option>
                 <option value="5.45">5,45 &euro;</option>
-                <option value="">&raquo; <?php Echo $this->t('other amount') ?></option>
               </select>
               <input type="button" class="dennis_hoppe_contribution_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />            
             </div>
