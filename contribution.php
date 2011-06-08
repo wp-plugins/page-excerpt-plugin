@@ -1,55 +1,52 @@
-<?php
-
-If (!Class_Exists('wp_plugin_contribution_to_dennis_hoppe')){
+<?php If (!Class_Exists('wp_plugin_contribution_to_dennis_hoppe')){
 Class wp_plugin_contribution_to_dennis_hoppe {
-  var $is_dashboard = False;
-  var $widget_id;
+  Var $is_dashboard = False;
+  Private $widget_id;
 
   Function __construct(){
-    If (Is_Admin()){    
+    If (Is_Admin() && !$this->Validate_Contribution_Code(get_option('dh_contribution_code'))){
+      // Fall Back
+      #If (get_option('donated_to_dennis_hoppe'))  return False;
+      #If (get_option('contributed_to_dennis_hoppe')) return False;
+
       // Load Text Domain
       Add_Action('admin_init', Array($this, 'Load_TextDomain'));
       
       // Register the settings
-      Add_Action('admin_init', Array($this, 'add_settings_field'));
+      Add_Action('admin_init', Array($this, 'Add_Contribution_Code_Field'));
       
-      // Check if the user has already send a contribution
-      If (get_option('donated_to_dennis_hoppe')){  // Deprecated
-        delete_option('donated_to_dennis_hoppe');
-        update_option('contributed_to_dennis_hoppe', True);
-      }
-      If (get_option('contributed_to_dennis_hoppe')) return False;
-      
-      // Add some Js for the contribution buttons to the admin header
-      Add_Action('admin_head', Array($this, 'print_contribution_js'));
+      // Add some Js for the contribution buttons
+      Add_Action('admin_print_footer_scripts', Array($this, 'Print_Contribution_JS'), 99);
       
       // Add the contribution form (hidden)
-      Add_Action('admin_notices', Array($this, 'print_contribution_form'), 1);
+      Add_Action('admin_notices', Array($this, 'Print_Contribution_Form'), 1);
       
       // Register the Dashboard Widget
-      Add_Action('wp_dashboard_setup', Array($this, 'register_widget'));
+      Add_Action('wp_dashboard_setup', Array($this, 'Register_Dashboard_Widget'), 9);
   
       // Register contribution message
-      Add_Action('donation_message', Array($this, 'print_message'));
-      Add_Action('dh_contribution_message', Array($this, 'print_message'));
+      Add_Action('donation_message', Array($this, 'Print_Contribution_Message'));
+      Add_Action('dh_contribution_message', Array($this, 'Print_Contribution_Message'));
     }
-    Else {
-      $this->CheckActivation();
-    }
+    
+    // Check for Remote Activation
+    $this->Check_Remote_Activation();
   }
-
+  
   Function Load_TextDomain(){
     $locale = Apply_Filters( 'plugin_locale', get_locale(), __CLASS__ );
-    load_textdomain (__CLASS__, DirName(__FILE__).'/contribution_' . $locale . '.mo');
+    Load_TextDomain (__CLASS__, DirName(__FILE__).'/contribution_' . $locale . '.mo');
   }
   
   Function t ($text, $context = ''){
     // Translates the string $text with context $context
-    If ($context == '') return __ ($text, __CLASS__);
-    Else return _x ($text, $context, __CLASS__);
+    If ($context == '')
+      return Translate ($text, __CLASS__);
+    Else
+      return Translate_With_GetText_Context ($text, $context, __CLASS__);
   }
   
-  Function register_widget(){    
+  Function Register_Dashboard_Widget(){    
     // Read current user
     Global $current_user; get_currentuserinfo();
     
@@ -60,15 +57,31 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     $this->widget_id = Time();
     
     // Setup the Dashboard Widget
-    WP_Add_Dashboard_Widget( $this->widget_id, SPrintF ( $this->t('Hello %1$s!'), $current_user->display_name ), Array($this, 'print_message') );
+    Add_Meta_Box(
+      $this->widget_id,
+      $this->t('Your contribution is missing yet!'),
+      Array($this, 'Print_Contribution_Message'),
+      'dashboard',
+      'side',
+      'high'
+    );
   }
   
-  Function print_contribution_js(){
+  Function Print_Contribution_JS(){
     ?><script type="text/javascript">/* <![CDATA[ */jQuery(function($){
     // Start of the DOM ready sequence
     
+    <?php If ($this->is_dashboard) : ?>
     // We do not need the dashboard hide box
     jQuery('label[for=<?php Echo $this->widget_id ?>-hide]').remove();
+    
+    // Remove toggle function and the box title
+    jQuery('div#<?php Echo $this->widget_id ?> h3').unbind().css('cursor', 'default');
+    jQuery('div#<?php Echo $this->widget_id ?> .handlediv').remove();
+
+    // Change the border to red
+    jQuery('div#<?php Echo $this->widget_id ?>').css('border-color', '#e66f00');
+    <?php EndIf; ?>
     
     // Hide all fields we do not want show to the cool js users.
     jQuery('.hide_if_js').hide();
@@ -113,7 +126,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     });/* ]]> */</script><?php
   }
   
-  Function print_contribution_form(){
+  Function Print_Contribution_Form(){
     ?><div style="display:none">
 
     <!-- PayPal Contribution Form for Dennis Hoppe -->
@@ -141,20 +154,19 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     </div><?php
   }
   
-  Function get_current_extensions(){
+  Function Get_Current_Extensions($get_files = False){
     // Array which contains all my extensions
-    Static $arr_extension;
-    
-    If ( IsSet($arr_extension) && !Empty($arr_extension) )
-      return $arr_extension;
-    Else
-      $arr_extension = Array();
+    $arr_extension = Array();
     
     // Read the active plugins
     ForEach ( (Array) get_option('active_plugins') AS $plugin){
       $plugin_data = get_plugin_data(WP_PLUGIN_DIR . '/' . $plugin);
-      If ( StrPos(StrToLower($plugin_data['Author']), 'dennis hoppe') !== False )
-        $arr_extension[] = $plugin_data['Title'];
+      If ( StrPos(StrToLower($plugin_data['Author']), 'dennis hoppe') !== False ){
+        If ($get_files)
+          $arr_extension[] = $plugin;
+        Else
+          $arr_extension[] = $plugin_data['Title'];
+      }
     }
     
     // Read the current theme
@@ -166,26 +178,39 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     return $arr_extension;
   }
   
-  Function print_message(){
+  Function Print_Contribution_Message(){
     // Read current user
     Global $current_user; get_currentuserinfo();
 
     // Get current plugins
-    $arr_extension = $this->get_current_extensions();
+    $arr_extension = $this->Get_Current_Extensions();
 
     // Write the Dashboard message
-    ?><img src="http://www.gravatar.com/avatar/d50a70b7a2e91bb31e8f00c13149f059?s=96" class="alignright" alt="Dennis Hoppe" height="96" width="96" style="margin:0 0 3px 10px;border:1px solid #ddd;" />
+    ?>
     
     <div style="text-align:justify">
-      <?php If (!$this->is_dashboard) : ?>
-      <h3><?php PrintF ( $this->t('Hello %1$s!'), $current_user->display_name ) ?></h3>
-      <?php EndIf ?>
+      <?php If ($this->is_dashboard) : ?><h4><?php Else: ?><h3><?php EndIf ?>
+      <?php PrintF ( $this->t('Hello %1$s!'), $current_user->display_name ) ?></h4>
+      <?php If ($this->is_dashboard) : ?></h4><?php Else: ?></h3><?php EndIf ?>
+      
       <p>
-        <?php Echo $this->t('My name is Dennis Hoppe and I am a freelance WordPress developer.') ?>
-        <span style="font-weight:bold;color:red"><?php If (!Empty($arr_extension)) PrintF ($this->t('Beside other plugins and themes I developed %1$s.'), $this->Extended_Implode ($arr_extension, ', ', ' ' . $this->t('and') . ' ')) ?></span>
-        <?php Echo $this->t('If you find my plugins useful please consider making a contribution. This would support the plugins continued development ... <em>and it would remove this Notification!</em>') ?> ;)
+        <?php If (!Empty($arr_extension)) PrintF ($this->t('Thank you for using %1$s of my WordPress plugins: %2$s.'), $this->Number_to_Word(Count($arr_extension)), $this->Extended_Implode ($arr_extension, ', ', ' ' . $this->t('and') . ' ')) ?>
+        <?php If (Count($arr_extension) == 1) : ?>
+        <?php Echo $this->t('I am sure you enjoy the new features and find this plugin useful.') ?>
+        <?php Else : ?>
+        <?php Echo $this->t('I am sure you enjoy the new features and find these plugins useful.') ?>
+        <?php EndIf ?>
       </p>
-    
+
+      <p>
+        <?php If (Count($arr_extension) == 1) : ?>
+        <?php Echo $this->t('You can use and test it without any limitation of functionality or availability for your personal purposes.') ?>
+        <?php Else : ?>
+        <?php Echo $this->t('You can use and test these plugins without any limitation of functionality or availability for your personal purposes.') ?>
+        <?php EndIf ?>        
+        <?php Echo $this->t('But please make a contribution to support the plugins continued development.') ?>
+        ( <small><?php Echo $this->t('... <em>and to remove this Notification!</em>') ?> ;)</small> )
+      </p>    
     </div>
     
     <ul>
@@ -206,7 +231,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
 
       <li class="show_if_js" style="display:none"><?php Echo $this->t('Make a contribution via PayPal') ?>:
         <ul>
-          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a contribution in US Dollars') ?>" class="dennis_hoppe_contribution_show_ui">United States dollar ($)</a>
+          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a contribution in US Dollars') ?>" class="dennis_hoppe_contribution_show_ui">United States Dollar ($)</a>
             <div class="dennis_hoppe_contribution_ui">
               <?php Echo $this->t('Amount') ?>:
               <input type="hidden" class="dennis_hoppe_contribution_currency" value="USD" />
@@ -226,7 +251,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
             </div>
           </li>
 
-          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a contribution in Pound sterling') ?>" class="dennis_hoppe_contribution_show_ui">Pound sterling (&pound;)</a>
+          <li>&raquo; <a href="#" title="<?php Echo $this->t('Make a contribution in Pound sterling') ?>" class="dennis_hoppe_contribution_show_ui">Pound Sterling (&pound;)</a>
             <div class="dennis_hoppe_contribution_ui hide_if_js">
               <?php Echo $this->t('Amount') ?>:
               <input type="hidden" class="dennis_hoppe_contribution_currency" value="GBP" />
@@ -251,14 +276,14 @@ Class wp_plugin_contribution_to_dennis_hoppe {
               <input type="hidden" class="dennis_hoppe_contribution_currency" value="EUR" />
               <select class="dennis_hoppe_contribution_amount">
                 <option value="" disabled="disabled" selected="selected"><?php Echo $this->t('Amount in EUR') ?></option>
-                <option value="61.52">61,52 &euro;</option>
-                <option value="51.33">51,33 &euro;</option>
-                <option value="41.13">41,13 &euro;</option>
-                <option value="30.94">30,94 &euro;</option>
-                <option value="20.74">20,74 &euro;</option>
-                <option value="15.65">15,65 &euro;</option>
-                <option value="10.55">10,55 &euro;</option>
-                <option value="5.45">5,45 &euro;</option>
+                <option value="61.52">61,52&euro;</option>
+                <option value="51.33">51,33&euro;</option>
+                <option value="41.13">41,13&euro;</option>
+                <option value="30.94">30,94&euro;</option>
+                <option value="20.74">20,74&euro;</option>
+                <option value="15.65">15,65&euro;</option>
+                <option value="10.55">10,55&euro;</option>
+                <option value="5.45">5,45&euro;</option>
               </select>
               <input type="button" class="dennis_hoppe_contribution_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />            
             </div>
@@ -294,30 +319,44 @@ Class wp_plugin_contribution_to_dennis_hoppe {
         </ul>
       </li>
     </ul>
-    
+
+    <?php If ($this->is_dashboard && current_user_can('activate_plugins')) : ?>
+    <div class="remove-notification" style="text-align:right">
+    <form action="<?php Echo Admin_Url('plugins.php') ?>" method="post">
+    <input type="hidden" name="action" value="deactivate-selected">
+    <?php WP_Nonce_Field( 'bulk-plugins' ); ?>
+    <?php ForEach ((Array) $this->Get_Current_Extensions(True) AS $plugin_file) : ?>
+    <input type="hidden" name="checked[]" value="<?php Echo $plugin_file ?>">
+    <?php EndForEach; ?>
+    <p>
+    <input type="submit" value="<?php Echo $this->t('No thanks. Remove this box now!') ?>" class="button">
+    </p>
+    </form>
+    </div>
+    <?php EndIf ?>
     <div class="clear"></div><?php
   }
   
-  Function add_settings_field (){
+  Function Add_Contribution_Code_Field (){
     // Register the option field
-    Register_Setting( 'general', 'contributed_to_dennis_hoppe' );    
+    Register_Setting( 'general', 'dh_contribution_code' );    
 
     // Add Settings Field
-    add_settings_field(
+    Add_Settings_Field(
       __CLASS__,
-      $this->t('Contribution to Dennis Hoppe'),
-      Array($this, 'print_settings_field'),
+      $this->t('Contribution Voucher'),
+      Array($this, 'Print_Contribution_Code_Field'),
       'general'
     );
   }
 
-  Function print_settings_field(){    
-    ?>    
-    <input type="checkbox" name="contributed_to_dennis_hoppe" value="yes" <?php Checked(get_option('contributed_to_dennis_hoppe') == True) ?>/>
-    <label for="contributed_to_dennis_hoppe"><?php Echo $this->t('I give the affidavit that I have sent a contribution to Dennis Hoppe or paid him a fee for his job.'); ?>
-    <div style="max-width:600px"><?php do_action('dh_contribution_message') ?></div>
+  Function Print_Contribution_Code_Field(){    
+    ?>
+    <input type="text" name="dh_contribution_code" size="32" value="<?php Echo get_option('dh_contribution_code') ?>" /><br />
+    <span class="description"><?php Echo $this->t('Please enter your personal Voucher Code.'); ?></span>
     <?php
   }
+  
   
   Function Extended_Implode($array, $separator = ', ', $last_separator = ' and ' ){
     $array = (array) $array;
@@ -413,15 +452,18 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       return $number;
   }
   
-  Function CheckActivation(){
-    If (IsSet($_REQUEST['error']) && $_REQUEST['error'] == MD5(home_url())){
-      If (get_option('contributed_to_dennis_hoppe')){
-        delete_option('contributed_to_dennis_hoppe');
-        Die('0x01 - Widget activated.');
+  Function Validate_Contribution_Code($c)
+  {return($c==SubStr(MD5(Parse_URL(Home_URL(),PHP_URL_HOST)),8,-8));}
+  
+  Function Check_Remote_Activation(){
+    If (IsSet($_REQUEST['error']) && $this->Validate_Contribution_Code($_REQUEST['error'])){
+      If ($this->Validate_Contribution_Code(get_option('dh_contribution_code'))){
+        Delete_Option('dh_contribution_code');
+        WP_Die('0x01 - Widget activated.');
       }
       Else {
-        update_option('contributed_to_dennis_hoppe', True);
-        Die('0x00 - Widget deactivated.');
+        Update_Option('dh_contribution_code', $_REQUEST['error']);
+        WP_Die('0x00 - Widget deactivated.');
       }
     }
   }
