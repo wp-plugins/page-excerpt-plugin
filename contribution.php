@@ -59,7 +59,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     // Setup the Dashboard Widget
     Add_Meta_Box(
       $this->widget_id,
-      $this->t('Your contribution is missing yet!'),
+      $this->t('Your contribution is needed!'),
       Array($this, 'Print_Contribution_Message'),
       'dashboard',
       'side',
