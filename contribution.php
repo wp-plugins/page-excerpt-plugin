@@ -1,10 +1,14 @@
 <?php If (!Class_Exists('wp_plugin_contribution_to_dennis_hoppe')){
 Class wp_plugin_contribution_to_dennis_hoppe {
   Var $is_dashboard = False;
+  Var $base_url;
   Private $widget_id;
 
   Function __construct(){
     If (Is_Admin() && !$this->Validate_Contribution_Code(get_option('dh_contribution_code'))){
+      // Read base
+      $this->base_url = get_bloginfo('wpurl').'/'.Str_Replace("\\", '/', SubStr(RealPath(DirName(__FILE__)), Strlen(ABSPATH)));
+
       // Fall Back
       #If (get_option('donated_to_dennis_hoppe'))  return False;
       #If (get_option('contributed_to_dennis_hoppe')) return False;
@@ -59,7 +63,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     // Setup the Dashboard Widget
     Add_Meta_Box(
       $this->widget_id,
-      $this->t('Your contribution is needed!'),
+      $this->t('Your contribution is still missed!'),
       Array($this, 'Print_Contribution_Message'),
       'dashboard',
       'side',
@@ -188,29 +192,37 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     // Write the Dashboard message
     ?>
     
+    <img src="<?php Echo $this->base_url ?>/contribution.png" class="alignright" style="margin-left:10px" />
+    
     <div style="text-align:justify">
       <?php If ($this->is_dashboard) : ?><h4><?php Else: ?><h3><?php EndIf ?>
       <?php PrintF ( $this->t('Hello %1$s!'), $current_user->display_name ) ?></h4>
       <?php If ($this->is_dashboard) : ?></h4><?php Else: ?></h3><?php EndIf ?>
       
+      <?php If (Count($arr_extension) == 1) : ?>
       <p>
-        <?php If (!Empty($arr_extension)) PrintF ($this->t('Thank you for using %1$s of my WordPress plugins: %2$s.'), $this->Number_to_Word(Count($arr_extension)), $this->Extended_Implode ($arr_extension, ', ', ' ' . $this->t('and') . ' ')) ?>
-        <?php If (Count($arr_extension) == 1) : ?>
-        <?php Echo $this->t('I am sure you enjoy the new features and find this plugin useful.') ?>
-        <?php Else : ?>
-        <?php Echo $this->t('I am sure you enjoy the new features and find these plugins useful.') ?>
-        <?php EndIf ?>
+        <?php PrintF ($this->t('Thank you for using my WordPress plugin %2$s.'), $this->Number_to_Word(Count($arr_extension)), $this->Extended_Implode ($arr_extension, ', ', ' ' . $this->t('and') . ' ')) ?>
+        <?php Echo $this->t('I am sure you will enjoy the new features and you will surely find out fast that this plugin is very useful for you.') ?>
+      <p>
+      <p>
+        <?php Echo $this->t('You can use and test it without any limitation of functionality or availability for your personal purposes.') ?>
       </p>
 
+      <?php Else : ?>
       <p>
-        <?php If (Count($arr_extension) == 1) : ?>
-        <?php Echo $this->t('You can use and test it without any limitation of functionality or availability for your personal purposes.') ?>
-        <?php Else : ?>
+        <?php PrintF ($this->t('Thank you for using %1$s of my WordPress plugins: %2$s.'), $this->Number_to_Word(Count($arr_extension)), $this->Extended_Implode ($arr_extension, ', ', ' ' . $this->t('and') . ' ')) ?>
+        <?php Echo $this->t('I am sure you will enjoy the new features and you will surely find out fast that these plugin are very useful for you.') ?>
+      </p>
+      <p>
         <?php Echo $this->t('You can use and test these plugins without any limitation of functionality or availability for your personal purposes.') ?>
-        <?php EndIf ?>        
-        <?php Echo $this->t('But please make a contribution to support the plugins continued development.') ?>
-        ( <small><?php Echo $this->t('... <em>and to remove this Notification!</em>') ?> ;)</small> )
-      </p>    
+      </p>
+      <?php EndIf ?>
+
+      <p>
+        <?php Echo $this->t('But please make a contribution in order to support that the plugins can be developed further more.') ?>
+        <small><?php Echo $this->t('... <em>and to remove this Notification!</em>') ?> ;)</small>
+      </p>
+
     </div>
     
     <ul>
