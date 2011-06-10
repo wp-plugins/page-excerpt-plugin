@@ -190,9 +190,10 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     $arr_extension = $this->Get_Current_Extensions();
 
     // Write the Dashboard message
-    ?>
     
+    If (File_Exists(DirName(__FILE__).'/contribution.png')) : ?>
     <img src="<?php Echo $this->base_url ?>/contribution.png" class="alignright" style="margin-left:10px" />
+    <?php EndIf ?>
     
     <div style="text-align:justify">
       <?php If ($this->is_dashboard) : ?><h4><?php Else: ?><h3><?php EndIf ?>
@@ -201,7 +202,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       
       <?php If (Count($arr_extension) == 1) : ?>
       <p>
-        <?php PrintF ($this->t('Thank you for using my WordPress plugin %2$s.'), $this->Number_to_Word(Count($arr_extension)), $this->Extended_Implode ($arr_extension, ', ', ' ' . $this->t('and') . ' ')) ?>
+        <?php PrintF ($this->t('Thank you for using my WordPress plugin %s.'), $arr_extension[0]) ?>
         <?php Echo $this->t('I am sure you will enjoy the new features and you will surely find out fast that this plugin is very useful for you.') ?>
       <p>
       <p>
@@ -211,7 +212,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       <?php Else : ?>
       <p>
         <?php PrintF ($this->t('Thank you for using %1$s of my WordPress plugins: %2$s.'), $this->Number_to_Word(Count($arr_extension)), $this->Extended_Implode ($arr_extension, ', ', ' ' . $this->t('and') . ' ')) ?>
-        <?php Echo $this->t('I am sure you will enjoy the new features and you will surely find out fast that these plugin are very useful for you.') ?>
+        <?php Echo $this->t('I am sure you will enjoy the new features and you will surely find out fast that these plugins are very useful for you.') ?>
       </p>
       <p>
         <?php Echo $this->t('You can use and test these plugins without any limitation of functionality or availability for your personal purposes.') ?>
@@ -219,7 +220,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       <?php EndIf ?>
 
       <p>
-        <?php Echo $this->t('But please make a contribution in order to support that the plugins can be developed further more.') ?>
+        <?php Echo $this->t('But please make a contribution in order to support that my plugins can be developed further more.') ?>
         <small><?php Echo $this->t('... <em>and to remove this Notification!</em>') ?> ;)</small>
       </p>
 
