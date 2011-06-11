@@ -58,9 +58,6 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     // Read current user
     Global $current_user; get_currentuserinfo();
     
-    // Get the current screen
-    $screen = get_current_screen();
-    
     // This is the dashboard
     $this->is_dashboard = True;
     
@@ -72,7 +69,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       $this->widget_id,
       $this->t('Your contribution is still missed!'),
       Array($this, 'Print_Contribution_Message'),
-      $screen->id,
+      'dashboard',
       'side',
       'high'
     );
