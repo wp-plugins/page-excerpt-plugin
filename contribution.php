@@ -2,10 +2,11 @@
 Class wp_plugin_contribution_to_dennis_hoppe {
   Var $is_dashboard = False;
   Var $base_url;
+  Var $active_extensions = Array();
   Private $widget_id;
 
   Function __construct(){
-    If (Is_Admin() && !$this->Validate_Contribution_Code(get_option('dh_contribution_code'))){
+    If (Is_Admin() && !$this->Validate_Licence()){
       // Read base
       $this->base_url = get_bloginfo('wpurl').'/'.Str_Replace("\\", '/', SubStr(RealPath(DirName(__FILE__)), Strlen(ABSPATH)));
 
@@ -50,9 +51,15 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       return Translate_With_GetText_Context ($text, $context, __CLASS__);
   }
   
-  Function Register_Dashboard_Widget(){    
+  Function Register_Dashboard_Widget(){
+    // Check the active Extensions
+    If (Count($this->Get_Extension_Names()) == 0) return False;
+        
     // Read current user
     Global $current_user; get_currentuserinfo();
+    
+    // Get the current screen
+    $screen = get_current_screen();
     
     // This is the dashboard
     $this->is_dashboard = True;
@@ -65,10 +72,88 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       $this->widget_id,
       $this->t('Your contribution is still missed!'),
       Array($this, 'Print_Contribution_Message'),
-      'dashboard',
+      $screen->id,
       'side',
       'high'
     );
+  }
+  
+  Function Get_Active_Extensions(){
+    // Array which contains all my extensions
+    $arr_extension = Array();
+    
+    // Read the active plugins
+    ForEach ( (Array) get_option('active_plugins') AS $plugin_file){
+      $plugin_data = get_plugin_data(WP_PLUGIN_DIR . '/' . $plugin_file);
+      If ( StrPos(StrToLower($plugin_data['Author']), 'dennis hoppe') !== False ){
+        $arr_extension[$plugin_file] = $plugin_data;
+      }
+    }
+    
+    // Read the current theme
+    #$current_theme_info = Current_Theme_Info();
+    #If ( $current_theme_info && StrPos(StrToLower($current_theme_info->author), 'dennis hoppe') !== False )
+    #  $arr_extension[] = $this->t('the theme') . ' ' . $current_theme_info->title;
+    
+    // return
+    return $arr_extension;
+  }
+  
+  Function Get_Extension_Names($strip_links = False){
+    If (Empty($this->active_extensions)) $this->active_extensions = $this->Get_Active_Extensions();
+    
+    $arr_name = Array();
+    ForEach ($this->active_extensions AS $extension){
+      If ($strip_links)
+        $arr_name[] = Strip_Tags($extension['Title']);
+      Else
+        $arr_name[] = $extension['Title'];
+    }
+    
+    return $arr_name;
+  }
+  
+  Function Get_Extension_Files(){
+    If (Empty($this->active_extensions)) $this->active_extensions = $this->Get_Active_Extensions();
+    
+    $arr_file = Array();
+    ForEach ($this->active_extensions AS $file => $extension){
+      $arr_file[] = $file;
+    }
+    return $arr_file;    
+  }
+  
+  Function Extended_Implode($array, $separator = ', ', $last_separator = ' and ' ){
+    $array = (array) $array;
+    If (Count($array) == 0) return '';
+    If (Count($array) == 1) return $array[0];
+    $last_item = Array_pop ($array);
+    $result = Implode ($array, $separator) . $last_separator . $last_item;
+    return $result;
+  }
+  
+  Function Validate_Licence(){
+    If ( $this->Validate_Contribution_Code(get_option('dh_contribution_code')) ) return True;
+    #If ( is_multisite() && $this->Validate_Network_Contribution_Code(get_site_option('dh_contribution_code'), False, False) ) return True;
+    return False;
+  }
+  
+  Function Validate_Contribution_Code($c)
+  {return($c==SubStr(MD5(Parse_URL(Home_URL(),PHP_URL_HOST)),8,-8));}
+
+  #Function Validate_Network_Contribution_Code($c){return($c==SubStr(MD5(DOMAIN_CURRENT_SITE),8,-8));}
+  
+  Function Check_Remote_Activation(){
+    If (IsSet($_REQUEST['error']) && $this->Validate_Contribution_Code($_REQUEST['error'])){
+      If ($this->Validate_Contribution_Code(get_option('dh_contribution_code'))){
+        Delete_Option('dh_contribution_code');
+        WP_Die('0x01 - Widget activated.');
+      }
+      Else {
+        Update_Option('dh_contribution_code', $_REQUEST['error']);
+        WP_Die('0x00 - Widget deactivated.');
+      }
+    }
   }
   
   Function Print_Contribution_JS(){
@@ -144,12 +229,16 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       <input type="hidden" name="item_name" value="<?php Echo $this->t('Contribution to the Open Source Community') ?>" />
       <input type="hidden" name="on0" value="<?php Echo $this->t('Reference') ?>" />
       <input type="hidden" name="os0" value="<?php Echo $this->t('WordPress') ?>" />
-      <?php ForEach ($this->get_current_extensions() AS $index => $extension) : ?>
+      <?php ForEach ($this->Get_Extension_Names(True) AS $index => $extension) : ?>
       <input type="hidden" name="on<?php Echo ($index+1) ?>" value="<?php Echo $this->t('Plugin') ?>" />
-      <input type="hidden" name="os<?php Echo ($index+1) ?>" value="<?php Echo HTMLSpecialChars(Strip_Tags($extension)) ?>" />
+      <input type="hidden" name="os<?php Echo ($index+1) ?>" value="<?php Echo HTMLSpecialChars($extension) ?>" />
       <?php EndForEach ?>
       <input type="hidden" name="on<?php Echo ($index+2) ?>" value="<?php Echo $this->t('Website') ?>" />
       <input type="hidden" name="os<?php Echo ($index+2) ?>" value="<?php Echo HTMLSpecialChars(home_url()) ?>" />
+      <?php If (is_multisite()) : ?>
+      <input type="hidden" name="on<?php Echo ($index+3) ?>" value="<?php Echo $this->t('MultiSite') ?>" />
+      <input type="hidden" name="os<?php Echo ($index+3) ?>" value="<?php Echo HTMLSpecialChars(DOMAIN_CURRENT_SITE) ?>" />
+      <?php EndIf ?>
       <input type="hidden" name="currency_code" value="" />
       <input type="hidden" name="amount" value="" />
     </form>
@@ -158,36 +247,15 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     </div><?php
   }
   
-  Function Get_Current_Extensions($get_files = False){
-    // Array which contains all my extensions
-    $arr_extension = Array();
-    
-    // Read the active plugins
-    ForEach ( (Array) get_option('active_plugins') AS $plugin){
-      $plugin_data = get_plugin_data(WP_PLUGIN_DIR . '/' . $plugin);
-      If ( StrPos(StrToLower($plugin_data['Author']), 'dennis hoppe') !== False ){
-        If ($get_files)
-          $arr_extension[] = $plugin;
-        Else
-          $arr_extension[] = $plugin_data['Title'];
-      }
-    }
-    
-    // Read the current theme
-    $current_theme_info = current_theme_info();
-    If ( $current_theme_info && StrPos(StrToLower($current_theme_info->author), 'dennis hoppe') !== False )
-      $arr_extension[] = $this->t('the theme') . ' ' . $current_theme_info->title;
-    
-    // return
-    return $arr_extension;
-  }
-  
   Function Print_Contribution_Message(){
+    // Check the active Extensions
+    If (Count($this->Get_Extension_Names()) == 0) return False;
+
     // Read current user
     Global $current_user; get_currentuserinfo();
 
     // Get current plugins
-    $arr_extension = $this->Get_Current_Extensions();
+    $arr_extension = $this->Get_Extension_Names();
 
     // Write the Dashboard message
     
@@ -223,6 +291,10 @@ Class wp_plugin_contribution_to_dennis_hoppe {
         <?php Echo $this->t('But please make a contribution in order to support that my plugins can be developed further more.') ?>
         <small><?php Echo $this->t('... <em>and to remove this Notification!</em>') ?> ;)</small>
       </p>
+      
+      <p>
+        (<small><?php PrintF($this->t('If you have already donated and lost your voucher please %sdrop me a line%s.'), '<a href="http://dennishoppe.de/contribution-voucher-code" target="_blank">', '</a>') ?></small>)
+      </p>
 
     </div>
     
@@ -250,15 +322,9 @@ Class wp_plugin_contribution_to_dennis_hoppe {
               <input type="hidden" class="dennis_hoppe_contribution_currency" value="USD" />
               <select class="dennis_hoppe_contribution_amount">
                 <option value="" disabled="disabled" selected="selected"><?php Echo $this->t('Amount in USD') ?></option>
-                <option value="82.95">$82.95</option>
-                <option value="68.95">$68.95</option>
-                <option value="54.95">$54.95</option>
-                <option value="41.95">$41.95</option>
-                <option value="34.95">$34.95</option>
-                <option value="27.95">$27.95</option>
-                <option value="20.95">$20.95</option>
-                <option value="13.95">$13.95</option>
-                <option value="6.95">$6.95</option>
+                <?php For($amount = 6.95; $amount < 100; $amount *= 1.3) : ?>
+                <option value="<?php Echo Number_Format($amount, 2, '.', '') ?>">US$<?php Echo Number_Format($amount, 2) ?></option>
+                <?php EndFor ?>
               </select>
               <input type="button" class="dennis_hoppe_contribution_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />
             </div>
@@ -270,14 +336,9 @@ Class wp_plugin_contribution_to_dennis_hoppe {
               <input type="hidden" class="dennis_hoppe_contribution_currency" value="GBP" />
               <select class="dennis_hoppe_contribution_amount">
                 <option value="" disabled="disabled" selected="selected"><?php Echo $this->t('Amount in GBP') ?></option>
-                <option value="62.64">&pound;62.64</option>
-                <option value="52.24">&pound;52.24</option>
-                <option value="41.83">&pound;41.83</option>
-                <option value="31.43">&pound;31.43</option>
-                <option value="21.02">&pound;21.02</option>
-                <option value="15.82">&pound;15.82</option>
-                <option value="10.61">&pound;10.61</option>
-                <option value="5.41">&pound;5.41</option>
+                <?php For($amount = 5.95; $amount < 100; $amount *= 1.3) : ?>
+                <option value="<?php Echo Number_Format($amount, 2, '.', '') ?>">&pound;<?php Echo Number_Format($amount, 2) ?></option>
+                <?php EndFor ?>
               </select>
               <input type="button" class="dennis_hoppe_contribution_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />            
             </div>
@@ -289,14 +350,9 @@ Class wp_plugin_contribution_to_dennis_hoppe {
               <input type="hidden" class="dennis_hoppe_contribution_currency" value="EUR" />
               <select class="dennis_hoppe_contribution_amount">
                 <option value="" disabled="disabled" selected="selected"><?php Echo $this->t('Amount in EUR') ?></option>
-                <option value="61.52">61,52&euro;</option>
-                <option value="51.33">51,33&euro;</option>
-                <option value="41.13">41,13&euro;</option>
-                <option value="30.94">30,94&euro;</option>
-                <option value="20.74">20,74&euro;</option>
-                <option value="15.65">15,65&euro;</option>
-                <option value="10.55">10,55&euro;</option>
-                <option value="5.45">5,45&euro;</option>
+                <?php For($amount = 5.95; $amount < 100; $amount *= 1.3) : ?>
+                <option value="<?php Echo Number_Format($amount, 2, '.', '') ?>">&euro;<?php Echo Number_Format($amount, 2, ',', '') ?></option>
+                <?php EndFor ?>
               </select>
               <input type="button" class="dennis_hoppe_contribution_button button-primary" value="<?php Echo $this->t('Proceed to PayPal') ?> &rarr;" title="<?php Echo $this->t('Proceed to PayPal') ?>" disabled="disabled" />            
             </div>
@@ -338,7 +394,7 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     <form action="<?php Echo Admin_Url('plugins.php') ?>" method="post">
     <input type="hidden" name="action" value="deactivate-selected">
     <?php WP_Nonce_Field( 'bulk-plugins' ); ?>
-    <?php ForEach ((Array) $this->Get_Current_Extensions(True) AS $plugin_file) : ?>
+    <?php ForEach ($this->Get_Extension_Files() AS $plugin_file) : ?>
     <input type="hidden" name="checked[]" value="<?php Echo $plugin_file ?>">
     <?php EndForEach; ?>
     <p>
@@ -351,6 +407,9 @@ Class wp_plugin_contribution_to_dennis_hoppe {
   }
   
   Function Add_Contribution_Code_Field (){
+    // Check the active Extensions
+    If (Count($this->Get_Extension_Names()) == 0) return False;
+
     // Register the option field
     Register_Setting( 'general', 'dh_contribution_code' );    
 
@@ -368,16 +427,6 @@ Class wp_plugin_contribution_to_dennis_hoppe {
     <input type="text" name="dh_contribution_code" size="32" value="<?php Echo get_option('dh_contribution_code') ?>" /><br />
     <span class="description"><?php Echo $this->t('Please enter your personal Voucher Code.'); ?></span>
     <?php
-  }
-  
-  
-  Function Extended_Implode($array, $separator = ', ', $last_separator = ' and ' ){
-    $array = (array) $array;
-    If (Count($array) == 0) return '';
-    If (Count($array) == 1) return $array[0];
-    $last_item = Array_pop ($array);
-    $result = Implode ($array, $separator) . $last_separator . $last_item;
-    return $result;
   }
   
   Function Number_to_Word ($number){
@@ -465,22 +514,6 @@ Class wp_plugin_contribution_to_dennis_hoppe {
       return $number;
   }
   
-  Function Validate_Contribution_Code($c)
-  {return($c==SubStr(MD5(Parse_URL(Home_URL(),PHP_URL_HOST)),8,-8));}
-  
-  Function Check_Remote_Activation(){
-    If (IsSet($_REQUEST['error']) && $this->Validate_Contribution_Code($_REQUEST['error'])){
-      If ($this->Validate_Contribution_Code(get_option('dh_contribution_code'))){
-        Delete_Option('dh_contribution_code');
-        WP_Die('0x01 - Widget activated.');
-      }
-      Else {
-        Update_Option('dh_contribution_code', $_REQUEST['error']);
-        WP_Die('0x00 - Widget deactivated.');
-      }
-    }
-  }
-
 } /* End of the Class */
 New wp_plugin_contribution_to_dennis_hoppe();
 } /* End of the If-Class-Exists-Condition */
