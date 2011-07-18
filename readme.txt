@@ -3,7 +3,7 @@ Contributors: dhoppe
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=1220480
 Tags: page, pages, excerpt, teaser, admin, content, cms
 Requires at least: 3.1
-Tested up to: 3.2
+Tested up to: 3.3
 Stable tag: trunk
 
 The Page Excerpt Plugin enables you to add an optional hand-crafted summary of your pages content to each page.
